@@ -1,0 +1,192 @@
+
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Avviksrapportering</title>
+  <meta name="theme-color" content="#4caf50">
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(to bottom right, #1b5e20, #4caf50);
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 700px;
+      margin: 40px auto;
+      background-color: rgba(0, 0, 0, 0.25);
+      padding: 30px 40px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 25px;
+      font-size: 2em;
+    }
+    label {
+      display: block;
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 1rem;
+    }
+    input[type="text"], input[type="file"] {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+    }
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .checkbox-group label {
+      font-weight: normal;
+      background: rgba(255,255,255,0.1);
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .checkbox-group input[type="checkbox"] {
+      margin-right: 8px;
+    }
+    button {
+      margin-top: 30px;
+      width: 100%;
+      padding: 16px;
+      font-size: 18px;
+      background-color: white;
+      color: #2e7d32;
+      border: none;
+      border-radius: 12px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    #bekreftelse {
+      display: none;
+      margin-top: 20px;
+      text-align: center;
+      color: #c8e6c9;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Avviksrapportering</h1>
+  <form id="avvikForm">
+    <label for="sjofor">Sjåfør:</label>
+    <input type="text" id="sjofor" name="sjofor" required>
+
+    <label for="kunde">Kunde:</label>
+    <input type="text" id="kunde" name="kunde" required>
+
+    <label for="dato">Dato og klokkeslett:</label>
+    <input type="text" id="dato" name="dato" disabled>
+
+    <label>Avvik (huk av):</label>
+    <div class="checkbox-group" id="avvikCheckboxes">
+      <label><input type="checkbox" name="avvik" value="Sprayboks">Sprayboks</label>
+      <label><input type="checkbox" name="avvik" value="Byggskum">Byggskum</label>
+      <label><input type="checkbox" name="avvik" value="Dekk">Dekk</label>
+      <label><input type="checkbox" name="avvik" value="E-avfall">E-avfall</label>
+      <label><input type="checkbox" name="avvik" value="Batteri">Batteri</label>
+      <label><input type="checkbox" name="avvik" value="Stein og betong">Stein og betong</label>
+      <label><input type="checkbox" name="avvik" value="Pyroteknisk">Pyroteknisk</label>
+      <label><input type="checkbox" name="avvik" value="Annet">Annet</label>
+    </div>
+
+    <label for="bilde1">Bilde 1 (nærbilde):</label>
+    <input type="file" id="bilde1" accept="image/*">
+
+    <label for="bilde2">Bilde 2 (oversiktsbilde):</label>
+    <input type="file" id="bilde2" accept="image/*">
+
+    <button type="submit">Send rapport</button>
+  </form>
+
+  <div id="bekreftelse">✅ Rapporten ble sendt!</div>
+</div>
+
+<script>
+  emailjs.init("W9z9B6eJBVVeHAjY9");
+
+  const datoInput = document.getElementById("dato");
+  const form = document.getElementById("avvikForm");
+  const bekreftelseDiv = document.getElementById("bekreftelse");
+
+  datoInput.value = new Date().toLocaleString("no-NO");
+
+  form.addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const sjofor = document.getElementById("sjofor").value;
+    const kunde = document.getElementById("kunde").value;
+    const dato = datoInput.value;
+
+    const avvikCheckboxes = document.querySelectorAll("input[name='avvik']:checked");
+    const avvik = Array.from(avvikCheckboxes).map(cb => cb.value).join(", ") || "Ingen avvik";
+
+    const bilde1 = document.getElementById("bilde1").files[0];
+    const bilde2 = document.getElementById("bilde2").files[0];
+
+    const sendKnapp = form.querySelector("button");
+    sendKnapp.disabled = true;
+    sendKnapp.textContent = "Sender...";
+
+    const formData = {
+      sjofor,
+      kunde,
+      dato,
+      avvik,
+      bilde1: bilde1 ? await toBase64(bilde1) : "",
+      bilde2: bilde2 ? await toBase64(bilde2) : ""
+    };
+
+    emailjs.send("service_9v0o8rb", "template_ymh8tl7", formData)
+      .then(() => {
+        form.reset();
+        datoInput.value = new Date().toLocaleString("no-NO");
+
+        bekreftelseDiv.style.display = "block";
+        sendKnapp.textContent = "Rapport sendt!";
+        setTimeout(() => {
+          sendKnapp.textContent = "Send rapport";
+          sendKnapp.disabled = false;
+          bekreftelseDiv.style.display = "none";
+        }, 4000);
+      }, (error) => {
+        alert("Feil ved sending: " + JSON.stringify(error));
+        sendKnapp.textContent = "Send rapport";
+        sendKnapp.disabled = false;
+      });
+  });
+
+  function toBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log("✅ Service Worker registrert"))
+      .catch(err => console.error("❌ Service Worker-feil:", err));
+  }
+</script>
+
+</body>
+</html>
