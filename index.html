@@ -5,8 +5,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Avviksrapportering</title>
-  <meta name="theme-color" content="#4caf50">
-  <link rel="manifest" href="manifest.json">
   <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <style>
     body {
@@ -71,12 +69,12 @@
       font-weight: bold;
       cursor: pointer;
     }
-    #bekreftelse {
-      display: none;
-      margin-top: 20px;
-      text-align: center;
-      color: #c8e6c9;
-      font-weight: bold;
+    .preview img {
+      width: 100%;
+      max-width: 300px;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: 2px solid white;
     }
   </style>
 </head>
@@ -114,25 +112,33 @@
 
     <button type="submit">Send rapport</button>
   </form>
-
-  <div id="bekreftelse">✅ Rapporten ble sendt!</div>
 </div>
 
 <script>
   emailjs.init("W9z9B6eJBVVeHAjY9");
+  document.getElementById("dato").value = new Date().toLocaleString("no-NO");
 
-  const datoInput = document.getElementById("dato");
-  const form = document.getElementById("avvikForm");
-  const bekreftelseDiv = document.getElementById("bekreftelse");
+  async function uploadToCloudinary(file) {
+    const url = "https://api.cloudinary.com/v1_1/dodljznbo/upload";
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "avvik");
 
-  datoInput.value = new Date().toLocaleString("no-NO");
+    const res = await fetch(url, {
+      method: "POST",
+      body: formData
+    });
 
-  form.addEventListener("submit", async function(e) {
+    const data = await res.json();
+    return data.secure_url;
+  }
+
+  document.getElementById("avvikForm").addEventListener("submit", async function(e) {
     e.preventDefault();
 
     const sjofor = document.getElementById("sjofor").value;
     const kunde = document.getElementById("kunde").value;
-    const dato = datoInput.value;
+    const dato = new Date().toLocaleString("no-NO");
 
     const avvikCheckboxes = document.querySelectorAll("input[name='avvik']:checked");
     const avvik = Array.from(avvikCheckboxes).map(cb => cb.value).join(", ") || "Ingen avvik";
@@ -140,52 +146,37 @@
     const bilde1 = document.getElementById("bilde1").files[0];
     const bilde2 = document.getElementById("bilde2").files[0];
 
-    const sendKnapp = form.querySelector("button");
-    sendKnapp.disabled = true;
-    sendKnapp.textContent = "Sender...";
+    let bilde1Url = "";
+    let bilde2Url = "";
+
+    try {
+      if (bilde1) bilde1Url = await uploadToCloudinary(bilde1);
+      if (bilde2) bilde2Url = await uploadToCloudinary(bilde2);
+    } catch (error) {
+      alert("Feil under opplasting av bilder: " + error.message);
+      return;
+    }
 
     const formData = {
       sjofor,
       kunde,
       dato,
       avvik,
-      bilde1: bilde1 ? await toBase64(bilde1) : "",
-      bilde2: bilde2 ? await toBase64(bilde2) : ""
+      dynamic_attachments: JSON.stringify([
+        { url: bilde1Url, name: "bilde1.jpg" },
+        { url: bilde2Url, name: "bilde2.jpg" }
+      ])
     };
 
     emailjs.send("service_9v0o8rb", "template_ymh8tl7", formData)
       .then(() => {
-        form.reset();
-        datoInput.value = new Date().toLocaleString("no-NO");
-
-        bekreftelseDiv.style.display = "block";
-        sendKnapp.textContent = "Rapport sendt!";
-        setTimeout(() => {
-          sendKnapp.textContent = "Send rapport";
-          sendKnapp.disabled = false;
-          bekreftelseDiv.style.display = "none";
-        }, 4000);
+        alert("✅ Rapport sendt!");
+        document.getElementById("avvikForm").reset();
+        document.getElementById("dato").value = new Date().toLocaleString("no-NO");
       }, (error) => {
-        alert("Feil ved sending: " + JSON.stringify(error));
-        sendKnapp.textContent = "Send rapport";
-        sendKnapp.disabled = false;
+        alert("❌ Feil ved sending: " + JSON.stringify(error));
       });
   });
-
-  function toBase64(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  }
-
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js')
-      .then(() => console.log("✅ Service Worker registrert"))
-      .catch(err => console.error("❌ Service Worker-feil:", err));
-  }
 </script>
 
 </body>
