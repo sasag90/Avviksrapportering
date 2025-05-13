@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Avviksrapportering</title>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+  <script>
+    emailjs.init("W9z9B6eJBVVeHAjY9"); // <-- Sett inn din egen bruker-ID
+  </script>
+  <style>
+    body {
+      background: linear-gradient(to bottom right, #1b5e20, #4caf50);
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+    .container {
+      max-width: 700px;
+      margin: 40px auto;
+      background-color: rgba(0, 0, 0, 0.25);
+      padding: 30px 40px;
+      border-radius: 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 25px;
+      font-size: 2em;
+    }
+    label {
+      display: block;
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 1rem;
+    }
+    input[type="text"], input[type="file"], input[type="number"] {
+      width: 100%;
+      padding: 12px;
+      margin-top: 6px;
+      border-radius: 8px;
+      border: none;
+      font-size: 1rem;
+    }
+    .checkbox-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .checkbox-group label {
+      font-weight: normal;
+      background: rgba(255,255,255,0.1);
+      padding: 10px 15px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .checkbox-group input[type="checkbox"] {
+      margin-right: 8px;
+    }
+    button {
+      margin-top: 30px;
+      width: 100%;
+      padding: 16px;
+      font-size: 18px;
+      background-color: white;
+      color: #2e7d32;
+      border: none;
+      border-radius: 12px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .conditional {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Avviksrapportering</h1>
+  <form id="avvikForm">
+    <label for="ordrenr">Ordrenr.:</label>
+    <input type="text" id="ordrenr" name="ordrenr" required />
+    <label for="sjofor">Sjåfør:</label>
+    <input type="text" id="sjofor" name="sjofor" required />
+    <label for="kunde">Kunde:</label>
+    <input type="text" id="kunde" name="kunde" required />
+    <label for="dato">Dato og klokkeslett:</label>
+    <input type="text" id="dato" name="dato" disabled />
+    <label>Avvik:</label>
+    <div class="checkbox-group">
+      <label><input type="checkbox" name="avvik" value="Sprayboks">Sprayboks</label>
+      <label><input type="checkbox" name="avvik" value="Byggskum">Byggskum</label>
+      <label><input type="checkbox" name="avvik" value="Dekk">Dekk</label>
+      <label><input type="checkbox" name="avvik" value="E-avfall">E-avfall</label>
+      <label><input type="checkbox" name="avvik" value="Batteri">Batteri</label>
+      <label><input type="checkbox" name="avvik" value="Stein og betong">Stein og betong</label>
+      <label><input type="checkbox" name="avvik" value="Pyroteknisk">Pyroteknisk</label>
+      <label><input type="checkbox" name="avvik" value="Gips">Gips</label>
+      <label><input type="checkbox" name="avvik" value="Sorte avfallsekker">Sorte avfallsekker</label>
+      <label><input type="checkbox" name="avvik" value="Isolasjon">Isolasjon</label>
+      <label><input type="checkbox" id="timearbeid" name="avvik" value="Timearbeid">Timearbeid</label>
+      <label><input type="checkbox" name="avvik" value="Smittefarlig">Smittefarlig</label>
+      <label><input type="checkbox" name="avvik" value="Radioaktivt">Radioaktivt</label>
+      <label><input type="checkbox" name="avvik" value="Farlig avfall">Farlig avfall</label>
+      <label><input type="checkbox" id="annetAvvik" name="avvik" value="Annet">Annet</label>
+    </div>
+    <div class="conditional" id="annetTekstBoks">
+      <label for="annetTekst">Beskriv annet:</label>
+      <input type="text" id="annetTekst" />
+    </div>
+    <div class="conditional" id="timerInput">
+      <label for="timer">Antall timer:</label>
+      <input type="number" id="timer" />
+    </div>
+    <label for="bilde1">Bilde 1 (nærbilde):</label>
+    <input type="file" id="bilde1" accept="image/*">
+    <label for="bilde2">Bilde 2 (oversiktsbilde):</label>
+    <input type="file" id="bilde2" accept="image/*">
+    <button type="submit">Send rapport</button>
+  </form>
+</div>
+<script>
+  document.getElementById("dato").value = new Date().toLocaleString("no-NO");
+  document.getElementById("annetAvvik").addEventListener("change", function () {
+    document.getElementById("annetTekstBoks").style.display = this.checked ? "block" : "none";
+  });
+  document.getElementById("timearbeid").addEventListener("change", function () {
+    document.getElementById("timerInput").style.display = this.checked ? "block" : "none";
+  });
+  document.getElementById("avvikForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+    const sjofor = document.getElementById("sjofor").value;
+    const kunde = document.getElementById("kunde").value;
+    const ordrenr = document.getElementById("ordrenr").value;
+    const dato = new Date().toLocaleString("no-NO");
+    const avvikCheckboxes = document.querySelectorAll("input[name='avvik']:checked");
+    let avvik = Array.from(avvikCheckboxes).map(cb => cb.value);
+    if (document.getElementById("annetAvvik").checked) {
+      const ekstra = document.getElementById("annetTekst").value;
+      if (ekstra) avvik.push("Annet: " + ekstra);
+    }
+    if (document.getElementById("timearbeid").checked) {
+      const timer = document.getElementById("timer").value;
+      if (timer) avvik.push("Timearbeid: " + timer + " timer");
+    }
+    const bilde1File = document.getElementById("bilde1").files[0];
+    const bilde2File = document.getElementById("bilde2").files[0];
+    let bilde1 = "", bilde2 = "";
+    try {
+      if (bilde1File) bilde1 = await uploadToCloudinary(bilde1File);
+    } catch (err) {
+      alert("Feil ved bilde 1: " + err.message);
+    }
+    try {
+      if (bilde2File) bilde2 = await uploadToCloudinary(bilde2File);
+    } catch (err) {
+      alert("Feil ved bilde 2: " + err.message);
+    }
+    const data = { sjofor, kunde, dato, ordrenr, avvik: avvik.join(", "), bilde1, bilde2 };
+    try {
+      await emailjs.send("service_9v0o8rb", "template_d82p5bl", data);
+      alert("✅ Rapport sendt!");
+      document.getElementById("avvikForm").reset();
+      document.getElementById("annetTekstBoks").style.display = "none";
+      document.getElementById("timerInput").style.display = "none";
+    } catch (error) {
+      alert("❌ Feil ved sending: " + error.message);
+    }
+  });
+  async function uploadToCloudinary(file) {
+    if (file.size > 15 * 1024 * 1024) throw new Error("Filen er for stor. Maks 15MB.");
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", "avvik1");
+    const response = await fetch("https://api.cloudinary.com/v1_1/dodljznbo/image/upload", {
+      method: "POST",
+      body: formData
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error?.message || "Ukjent feil");
+    return data.secure_url;
+  }
+</script>
+</body>
+</html>
